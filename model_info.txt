@@ -1,0 +1,19 @@
+=== Informações do Modelo ===
+
+Features utilizadas: blueGoldDiff, blueExperienceDiff, blueKills, blueDeaths, blueAssists, blueDragons, blueHeralds, blueTowersDestroyed, blueFirstBlood, blueCSPerMin, blueGoldPerMin
+Acurácia no teste: 0.7156
+Acurácia CV: 0.7283 (+/- 0.0126)
+
+Importância das Features:
+                feature  importance
+0          blueGoldDiff    0.306483
+1    blueExperienceDiff    0.229545
+10       blueGoldPerMin    0.164794
+3            blueDeaths    0.076160
+9          blueCSPerMin    0.069928
+2             blueKills    0.055192
+4           blueAssists    0.045436
+5           blueDragons    0.028687
+8        blueFirstBlood    0.013405
+6           blueHeralds    0.008023
+7   blueTowersDestroyed    0.002346
