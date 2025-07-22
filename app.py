@@ -4,9 +4,9 @@ Aplicação Streamlit para análise de dados de League of Legends
 import streamlit as st
 import pandas as pd
 import joblib
-import seaborn as sns
-import matplotlib.pyplot as plt
+import plotly.express as px
 from data_manager import load_data
+from typing import Dict, Any
 
 # Configuração da página
 st.set_page_config(
@@ -15,13 +15,8 @@ st.set_page_config(
     layout="wide"
 )
 
-# Configuração do estilo dos gráficos
-plt.style.use('seaborn-v0_8-darkgrid')
-sns.set_palette("husl")
-
-
 @st.cache_resource
-def load_model():
+def load_model() -> Dict[str, Any]:
     """
     Carrega o modelo pré-treinado usando cache para otimizar performance.
     
@@ -32,7 +27,7 @@ def load_model():
     return model_data
 
 
-def main():
+def main() -> None:
     """Função principal da aplicação"""
     
     # Título principal
@@ -69,8 +64,8 @@ def main():
         Analise como a diferença de ouro e o first blood impactam a probabilidade de vitória do Time Azul.
         """)
         
-        # Layout de duas colunas
-        col1, col2 = st.columns(2)
+        # Layout de três colunas
+        col1, col2, col3 = st.columns(3)
         
         with col1:
             st.subheader("Probabilidade de Vitória por Diferença de Ouro")
@@ -81,24 +76,22 @@ def main():
             df['gold_diff_bin'] = pd.cut(df['blueGoldDiff'], bins=bins, labels=labels, right=False)
 
             # Calculate win rates for each bin
-            gold_diff_stats = df.groupby('gold_diff_bin')['blueWins'].agg(['count', lambda x: (x == 1).sum()])
+            gold_diff_stats = df.groupby(df['gold_diff_bin'].astype(str))['blueWins'].agg(['count', lambda x: (x == 1).sum()])
             gold_diff_stats.columns = ['total_games', 'wins']
             gold_diff_stats['win_rate'] = gold_diff_stats['wins'] / gold_diff_stats['total_games']
 
-            # Create the barplot of win probability
-            fig1, ax1 = plt.subplots(figsize=(10, 7))
-            sns.barplot(data=gold_diff_stats, x=gold_diff_stats.index, y='win_rate', ax=ax1, palette='viridis')
-            ax1.set_xlabel('Diferença de Ouro (Azul - Vermelho) aos 10 min', fontsize=12)
-            ax1.set_ylabel('Probabilidade de Vitória', fontsize=12)
-            # Format y-axis as percentage
-            ax1.set_yticklabels(['{:.0%}'.format(x) for x in ax1.get_yticks()])
-            plt.title('Probabilidade de Vitória com Base na Diferença de Ouro', fontsize=14)
-
-            # Add data point counts on top of bars
-            for i, row in gold_diff_stats.iterrows():
-                ax1.text(i, row['win_rate'] + 0.01, f"{row['total_games']} games", color='black', ha="center", fontsize=9)
-
-            st.pyplot(fig1)
+            # Create the barplot of win probability with Plotly
+            fig1 = px.bar(
+                gold_diff_stats,
+                x=gold_diff_stats.index,
+                y='win_rate',
+                title='Probabilidade de Vitória com Base na Diferença de Ouro',
+                labels={'win_rate': 'Probabilidade de Vitória', 'x': 'Diferença de Ouro (Azul - Vermelho) aos 10 min'},
+                text_auto=True,
+                color_discrete_sequence=px.colors.sequential.Viridis
+            )
+            fig1.update_layout(yaxis_tickformat='.0%')
+            st.plotly_chart(fig1, use_container_width=True)
             
             # Insights
             st.info("💡 **Insight**: Times com vantagem de ouro aos 10 minutos têm maior probabilidade de vitória.")
@@ -111,19 +104,45 @@ def main():
             first_blood_stats.columns = ['total_games', 'wins']
             first_blood_stats['win_rate'] = first_blood_stats['wins'] / first_blood_stats['total_games']
 
-            # Cria o barplot de probabilidade de vitória
-            fig2, ax2 = plt.subplots(figsize=(10, 7))
-            sns.barplot(data=first_blood_stats, x=first_blood_stats.index, y='win_rate', ax=ax2, palette='viridis')
-            ax2.set_xlabel('Time Azul Conseguiu First Blood', fontsize=12)
-            ax2.set_ylabel('Probabilidade de Vitória', fontsize=12)
-            ax2.set_xticklabels(['Não', 'Sim'])
-            # Format y-axis as percentage
-            ax2.set_yticklabels(['{:.0%}'.format(x) for x in ax2.get_yticks()])
-            plt.title('Probabilidade de Vitória com Base no First Blood', fontsize=14)
-            st.pyplot(fig2)
+            # Create the barplot of win probability with Plotly
+            fig2 = px.bar(
+                first_blood_stats,
+                x=first_blood_stats.index,
+                y='win_rate',
+                title='Probabilidade de Vitória com Base no First Blood',
+                labels={'win_rate': 'Probabilidade de Vitória', 'blueFirstBlood': 'Time Azul Conseguiu First Blood'},
+                color_discrete_sequence=px.colors.sequential.Viridis
+            )
+            fig2.update_xaxes(ticktext=['Não', 'Sim'], tickvals=[0, 1])
+            fig2.update_layout(yaxis_tickformat='.0%')
+            st.plotly_chart(fig2, use_container_width=True)
             
             # Insights
             st.info("💡 **Insight**: Conseguir o First Blood aumenta as chances de vitória, mas não é determinante.")
+        
+        with col3:
+            st.subheader("Importância das Features para a Vitória")
+            
+            # Calcula a importância das features
+            feature_importance = pd.DataFrame({
+                'feature': feature_names,
+                'importance': model.feature_importances_
+            }).sort_values('importance', ascending=False)
+
+            # Cria o gráfico de barras de importância das features com Plotly
+            fig3 = px.bar(
+                feature_importance,
+                x='importance',
+                y='feature',
+                orientation='h',
+                title='Importância de Cada Métrica para a Predição',
+                labels={'importance': 'Importância', 'feature': 'Métrica'},
+                color_discrete_sequence=px.colors.sequential.Viridis
+            )
+            fig3.update_layout(yaxis={'categoryorder':'total ascending'})
+            st.plotly_chart(fig3, use_container_width=True)
+            
+            st.info("💡 **Insight**: A diferença de ouro e experiência são os fatores mais decisivos para a vitória.")
     
     # Aba 2: Simulador de Vitória
     with tab2:

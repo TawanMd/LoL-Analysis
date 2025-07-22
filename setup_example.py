@@ -3,9 +3,13 @@ Script de exemplo para configurar e testar o projeto LoL Analysis
 """
 import os
 import json
+from utils import get_logger
+
+# Initialize logger
+logger = get_logger(__name__)
 
 
-def create_example_secrets():
+def create_example_secrets() -> None:
     """Cria um exemplo de arquivo secrets.toml"""
     secrets_content = """# Exemplo de configuração - SUBSTITUA COM SUAS CREDENCIAIS REAIS!
 [kaggle]
@@ -19,15 +23,15 @@ key = "sua_chave_api_aqui"
     if not os.path.exists(secrets_path):
         with open(secrets_path, 'w') as f:
             f.write(secrets_content)
-        print(f"✅ Arquivo de exemplo criado: {secrets_path}")
-        print("⚠️  IMPORTANTE: Edite este arquivo com suas credenciais reais do Kaggle!")
+        logger.info(f"✅ Arquivo de exemplo criado: {secrets_path}")
+        logger.warning("IMPORTANTE: Edite este arquivo com suas credenciais reais do Kaggle!")
     else:
-        print(f"ℹ️  Arquivo {secrets_path} já existe.")
+        logger.info(f"ℹ️  Arquivo {secrets_path} já existe.")
 
 
-def check_dependencies():
+def check_dependencies() -> bool:
     """Verifica se as dependências estão instaladas"""
-    print("\n📦 Verificando dependências...")
+    logger.info("📦 Verificando dependências...")
     
     required_packages = [
         'streamlit',
@@ -44,56 +48,56 @@ def check_dependencies():
     for package in required_packages:
         try:
             __import__(package)
-            print(f"✅ {package} instalado")
+            logger.info(f"✅ {package} instalado")
         except ImportError:
-            print(f"❌ {package} não encontrado")
+            logger.error(f"❌ {package} não encontrado")
             missing_packages.append(package)
     
     if missing_packages:
-        print(f"\n⚠️  Pacotes faltando: {', '.join(missing_packages)}")
-        print("Execute: pip install -r requirements.txt")
+        logger.warning(f"Pacotes faltando: {', '.join(missing_packages)}")
+        logger.info("Execute: pip install -r requirements.txt")
         return False
     
     return True
 
 
-def check_kaggle_credentials():
+def check_kaggle_credentials() -> bool:
     """Verifica se as credenciais do Kaggle estão configuradas"""
-    print("\n🔑 Verificando credenciais do Kaggle...")
+    logger.info("🔑 Verificando credenciais do Kaggle...")
     
     secrets_path = '.streamlit/secrets.toml'
     if not os.path.exists(secrets_path):
-        print("❌ Arquivo de secrets não encontrado")
+        logger.error("❌ Arquivo de secrets não encontrado")
         return False
     
     with open(secrets_path, 'r') as f:
         content = f.read()
         
     if 'seu_username_aqui' in content or 'sua_chave_api_aqui' in content:
-        print("⚠️  Credenciais do Kaggle ainda não foram configuradas!")
-        print("   Edite o arquivo .streamlit/secrets.toml com suas credenciais reais")
+        logger.warning("Credenciais do Kaggle ainda não foram configuradas!")
+        logger.info("   Edite o arquivo .streamlit/secrets.toml com suas credenciais reais")
         return False
     
-    print("✅ Arquivo de credenciais encontrado")
+    logger.info("✅ Arquivo de credenciais encontrado")
     return True
 
 
-def check_model():
+def check_model() -> bool:
     """Verifica se o modelo treinado existe"""
-    print("\n🤖 Verificando modelo treinado...")
+    logger.info("🤖 Verificando modelo treinado...")
     
     if os.path.exists('lol_win_predictor.joblib'):
-        print("✅ Modelo encontrado: lol_win_predictor.joblib")
+        logger.info("✅ Modelo encontrado: lol_win_predictor.joblib")
         return True
     else:
-        print("❌ Modelo não encontrado")
-        print("   Execute: python train_model.py")
+        logger.error("❌ Modelo não encontrado")
+        logger.info("   Execute: python train_model.py")
         return False
 
 
-def main():
+def main() -> None:
     """Função principal"""
-    print("=== 🎮 LoL Analysis - Verificação de Setup ===\n")
+    logger.info("=== 🎮 LoL Analysis - Verificação de Setup ===")
     
     # Cria arquivo de exemplo se necessário
     create_example_secrets()
@@ -107,32 +111,32 @@ def main():
     # Verifica modelo
     model_ok = check_model()
     
-    print("\n" + "="*50)
-    print("📊 RESUMO DO STATUS:")
-    print("="*50)
+    logger.info("\n" + "="*50)
+    logger.info("📊 RESUMO DO STATUS:")
+    logger.info("="*50)
     
     all_ok = deps_ok and creds_ok and model_ok
     
     if all_ok:
-        print("\n✅ Tudo pronto! Você pode executar:")
-        print("   streamlit run app.py")
+        logger.info("\n✅ Tudo pronto! Você pode executar:")
+        logger.info("   streamlit run app.py")
     else:
-        print("\n⚠️  Algumas configurações precisam ser feitas:")
+        logger.warning("\n⚠️  Algumas configurações precisam ser feitas:")
         
         if not deps_ok:
-            print("\n1. Instale as dependências:")
-            print("   pip install -r requirements.txt")
+            logger.info("\n1. Instale as dependências:")
+            logger.info("   pip install -r requirements.txt")
         
         if not creds_ok:
-            print("\n2. Configure suas credenciais do Kaggle:")
-            print("   - Obtenha suas credenciais em: https://www.kaggle.com/account")
-            print("   - Edite o arquivo .streamlit/secrets.toml")
+            logger.info("\n2. Configure suas credenciais do Kaggle:")
+            logger.info("   - Obtenha suas credenciais em: https://www.kaggle.com/account")
+            logger.info("   - Edite o arquivo .streamlit/secrets.toml")
         
         if not model_ok:
-            print("\n3. Treine o modelo (após configurar as credenciais):")
-            print("   python train_model.py")
+            logger.info("\n3. Treine o modelo (após configurar as credenciais):")
+            logger.info("   python train_model.py")
     
-    print("\n📚 Para mais informações, consulte o README.md")
+    logger.info("\n📚 Para mais informações, consulte o README.md")
 
 
 if __name__ == "__main__":

@@ -7,8 +7,12 @@ import pandas as pd
 import json
 from kaggle.api.kaggle_api_extended import KaggleApi
 import zipfile
+from utils import get_logger
 
-def setup_kaggle_credentials():
+# Initialize logger
+logger = get_logger(__name__)
+
+def setup_kaggle_credentials() -> None:
     """
     Configura as credenciais do Kaggle a partir dos segredos do Streamlit.
     
@@ -37,7 +41,7 @@ def setup_kaggle_credentials():
     # Altera as permissões do arquivo para 600 (apenas o usuário pode ler e escrever)
     os.chmod(kaggle_json_path, 0o600)
 
-def download_dataset():
+def download_dataset() -> None:
     """
     Baixa o dataset do Kaggle se ainda não existir localmente.
     
@@ -49,10 +53,10 @@ def download_dataset():
     
     # Verifica se o arquivo já existe
     if os.path.exists(filename):
-        print(f"Dataset '{filename}' já existe. Pulando download.")
+        logger.info(f"Dataset '{filename}' já existe. Pulando download.")
         return
     
-    print("Dataset não encontrado. Iniciando download do Kaggle...")
+    logger.info("Dataset não encontrado. Iniciando download do Kaggle...")
     
     try:
         # Configura as credenciais do Kaggle
@@ -66,14 +70,14 @@ def download_dataset():
         dataset_name = 'bobbyscience/league-of-legends-diamond-ranked-games-10-min'
         api.dataset_download_files(dataset_name, path='.', unzip=True)
         
-        print(f"Download concluído! Dataset '{filename}' baixado com sucesso.")
+        logger.info(f"Download concluído! Dataset '{filename}' baixado com sucesso.")
         
     except Exception as e:
-        print(f"Erro ao baixar o dataset: {str(e)}")
+        logger.error(f"Erro ao baixar o dataset: {str(e)}")
         raise
 
 @st.cache_data
-def load_data():
+def load_data() -> pd.DataFrame:
     """
     Carrega o dataset em um DataFrame do Pandas.
     

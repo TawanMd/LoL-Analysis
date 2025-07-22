@@ -3,7 +3,7 @@ Script para treinar o modelo de predição de vitória do League of Legends
 """
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
@@ -11,9 +11,14 @@ import joblib
 import matplotlib.pyplot as plt
 import seaborn as sns
 from data_manager import load_data
+from typing import List, Tuple, Dict, Any
+from utils import get_logger
+
+# Initialize logger
+logger = get_logger(__name__)
 
 
-def prepare_features(df):
+def prepare_features(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series, List[str]]:
     """
     Prepara as features para o modelo baseado nos dados disponíveis.
     
@@ -43,7 +48,7 @@ def prepare_features(df):
     # Verifica quais features estão disponíveis no dataset
     available_features = [col for col in feature_columns if col in df.columns]
     
-    print(f"Features disponíveis: {available_features}")
+    logger.info(f"Features disponíveis: {available_features}")
     
     # Se não tivermos todas as features esperadas, vamos usar as básicas
     if len(available_features) < 5:
@@ -62,7 +67,7 @@ def prepare_features(df):
     return X, y, available_features
 
 
-def train_model(X, y, feature_names):
+def train_model(X: pd.DataFrame, y: pd.Series, feature_names: List[str]) -> Tuple[RandomForestClassifier, StandardScaler, Dict[str, Any]]:
     """
     Treina um modelo Random Forest para prever vitórias.
     
@@ -86,18 +91,27 @@ def train_model(X, y, feature_names):
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # Cria e treina o modelo
-    print("Treinando o modelo Random Forest...")
-    model = RandomForestClassifier(
-        n_estimators=100,
-        max_depth=10,
-        min_samples_split=5,
-        min_samples_leaf=2,
-        random_state=42,
-        n_jobs=-1
-    )
+    # Define o grid de parâmetros para o GridSearchCV
+    param_grid = {
+        'n_estimators': [100, 150],
+        'max_depth': [10, 20],
+        'min_samples_split': [2, 5],
+        'min_samples_leaf': [1, 2]
+    }
+
+    # Cria o modelo
+    rf = RandomForestClassifier(random_state=42, n_jobs=-1)
     
-    model.fit(X_train_scaled, y_train)
+    # Instancia o GridSearchCV
+    logger.info("Iniciando a busca de hiperparâmetros com GridSearchCV...")
+    grid_search = GridSearchCV(estimator=rf, param_grid=param_grid, cv=3, n_jobs=-1, verbose=2, scoring='accuracy')
+    
+    # Treina o modelo com GridSearchCV
+    grid_search.fit(X_train_scaled, y_train)
+    
+    # Pega o melhor modelo
+    model = grid_search.best_estimator_
+    logger.info(f"Melhores parâmetros encontrados: {grid_search.best_params_}")
     
     # Faz predições
     y_pred = model.predict(X_test_scaled)
@@ -106,15 +120,14 @@ def train_model(X, y, feature_names):
     # Calcula métricas
     accuracy = accuracy_score(y_test, y_pred)
     
-    # Cross-validation
+    # Cross-validation com o melhor modelo
     cv_scores = cross_val_score(model, X_train_scaled, y_train, cv=5)
     
-    print(f"\nAcurácia no conjunto de teste: {accuracy:.4f}")
-    print(f"Acurácia média (cross-validation): {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
+    logger.info(f"Acurácia no conjunto de teste com o melhor modelo: {accuracy:.4f}")
+    logger.info(f"Acurácia média (cross-validation) com o melhor modelo: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
     
     # Relatório de classificação
-    print("\nRelatório de Classificação:")
-    print(classification_report(y_test, y_pred, target_names=['Derrota', 'Vitória']))
+    logger.info("Relatório de Classificação:\n" + classification_report(y_test, y_pred, target_names=['Derrota', 'Vitória']))
     
     # Importância das features
     feature_importance = pd.DataFrame({
@@ -122,8 +135,7 @@ def train_model(X, y, feature_names):
         'importance': model.feature_importances_
     }).sort_values('importance', ascending=False)
     
-    print("\nImportância das Features:")
-    print(feature_importance)
+    logger.info("Importância das Features:\n" + feature_importance.to_string())
     
     # Plota a importância das features
     plt.figure(figsize=(10, 6))
@@ -149,13 +161,14 @@ def train_model(X, y, feature_names):
         'accuracy': accuracy,
         'cv_scores': cv_scores,
         'feature_importance': feature_importance,
-        'confusion_matrix': cm
+        'confusion_matrix': cm,
+        'best_params': grid_search.best_params_
     }
     
     return model, scaler, metrics
 
 
-def save_model_components(model, scaler, feature_names, filename='lol_win_predictor.joblib'):
+def save_model_components(model: RandomForestClassifier, scaler: StandardScaler, feature_names: List[str], filename: str = 'lol_win_predictor.joblib') -> None:
     """
     Salva o modelo, scaler e nomes das features em um único arquivo.
     """
@@ -169,29 +182,29 @@ def save_model_components(model, scaler, feature_names, filename='lol_win_predic
     
     # Salva tudo em um único arquivo
     joblib.dump(model_data, filename)
-    print(f"Modelo salvo como '{filename}'")
+    logger.info(f"Modelo salvo como '{filename}'")
 
 
-def main():
+def main() -> None:
     """Função principal para treinar e salvar o modelo"""
     
-    print("=== Treinamento do Modelo de Predição LoL ===\n")
+    logger.info("=== Treinamento do Modelo de Predição LoL ===")
     
     # Carrega os dados
-    print("Carregando dados...")
+    logger.info("Carregando dados...")
     df = load_data()
-    print(f"Total de partidas carregadas: {len(df):,}")
+    logger.info(f"Total de partidas carregadas: {len(df):,}")
     
     # Prepara as features
     X, y, feature_names = prepare_features(df)
-    print(f"\nShape dos dados: X={X.shape}, y={y.shape}")
-    print(f"Distribuição do target: {y.value_counts().to_dict()}")
+    logger.info(f"Shape dos dados: X={X.shape}, y={y.shape}")
+    logger.info(f"Distribuição do target: {y.value_counts().to_dict()}")
     
     # Treina o modelo
     model, scaler, metrics = train_model(X, y, feature_names)
     
     # Salva o modelo e componentes
-    print("\nSalvando o modelo...")
+    logger.info("Salvando o modelo...")
     save_model_components(model, scaler, feature_names)
     
     # Salva informações sobre o modelo
@@ -199,23 +212,25 @@ def main():
         'features': feature_names,
         'accuracy': metrics['accuracy'],
         'cv_scores_mean': metrics['cv_scores'].mean(),
-        'cv_scores_std': metrics['cv_scores'].std()
+        'cv_scores_std': metrics['cv_scores'].std(),
+        'best_params': metrics['best_params']
     }
     
     with open('model_info.txt', 'w') as f:
         f.write("=== Informações do Modelo ===\n\n")
+        f.write(f"Melhores Parâmetros: {model_info['best_params']}\n\n")
         f.write(f"Features utilizadas: {', '.join(feature_names)}\n")
         f.write(f"Acurácia no teste: {model_info['accuracy']:.4f}\n")
         f.write(f"Acurácia CV: {model_info['cv_scores_mean']:.4f} (+/- {model_info['cv_scores_std'] * 2:.4f})\n")
         f.write("\nImportância das Features:\n")
         f.write(metrics['feature_importance'].to_string())
     
-    print("\n✅ Treinamento concluído com sucesso!")
-    print("📊 Gráficos salvos: feature_importance.png, confusion_matrix.png")
-    print("📄 Informações do modelo salvas em: model_info.txt")
+    logger.info("✅ Treinamento concluído com sucesso!")
+    logger.info("📊 Gráficos salvos: feature_importance.png, confusion_matrix.png")
+    logger.info("📄 Informações do modelo salvas em: model_info.txt")
     
     # Teste rápido do modelo
-    print("\n=== Teste Rápido do Modelo ===")
+    logger.info("=== Teste Rápido do Modelo ===")
     test_data = pd.DataFrame({
         'blueGoldDiff': [1000],
         'blueExperienceDiff': [500],
@@ -236,9 +251,9 @@ def main():
     test_data_scaled = scaler.transform(test_data)
     prob = model.predict_proba(test_data_scaled)[0]
     
-    print(f"\nExemplo de predição:")
-    print(f"Entrada: {test_data.iloc[0].to_dict()}")
-    print(f"Probabilidade de vitória do time azul: {prob[1]:.2%}")
+    logger.info("Exemplo de predição:")
+    logger.info(f"Entrada: {test_data.iloc[0].to_dict()}")
+    logger.info(f"Probabilidade de vitória do time azul: {prob[1]:.2%}")
 
 
 if __name__ == "__main__":
