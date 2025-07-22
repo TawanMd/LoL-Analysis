@@ -52,12 +52,17 @@ def main() -> None:
         st.warning(f"⚠️ Modelo não encontrado: {str(e)}")
         model_data = None
         model = None
+        feature_names = []
     
     # Cria as abas
-    tab1, tab2 = st.tabs(["📊 Análise Exploratória", "🎯 Simulador de Vitória"])
+    tabs = ["📊 Análise Exploratória"]
+    if model:
+        tabs.append("🎯 Simulador de Vitória")
+    
+    tab_widgets = st.tabs(tabs)
     
     # Aba 1: Análise Exploratória
-    with tab1:
+    with tab_widgets[0]:
         st.header("Análise Exploratória dos Dados")
         st.markdown("""
         Explore as métricas chave que influenciam a vitória no League of Legends.
@@ -121,41 +126,41 @@ def main() -> None:
             st.info("💡 **Insight**: Conseguir o First Blood aumenta as chances de vitória, mas não é determinante.")
         
         with col3:
-            st.subheader("Importância das Features para a Vitória")
-            
-            # Calcula a importância das features
-            feature_importance = pd.DataFrame({
-                'feature': feature_names,
-                'importance': model.feature_importances_
-            }).sort_values('importance', ascending=False)
+            if model:
+                st.subheader("Importância das Features para a Vitória")
+                
+                # Calcula a importância das features
+                feature_importance = pd.DataFrame({
+                    'feature': feature_names,
+                    'importance': model.feature_importances_
+                }).sort_values('importance', ascending=False)
 
-            # Cria o gráfico de barras de importância das features com Plotly
-            fig3 = px.bar(
-                feature_importance,
-                x='importance',
-                y='feature',
-                orientation='h',
-                title='Importância de Cada Métrica para a Predição',
-                labels={'importance': 'Importância', 'feature': 'Métrica'},
-                color_discrete_sequence=px.colors.sequential.Viridis
-            )
-            fig3.update_layout(yaxis={'categoryorder':'total ascending'})
-            st.plotly_chart(fig3, use_container_width=True)
+                # Cria o gráfico de barras de importância das features com Plotly
+                fig3 = px.bar(
+                    feature_importance,
+                    x='importance',
+                    y='feature',
+                    orientation='h',
+                    title='Importância de Cada Métrica para a Predição',
+                    labels={'importance': 'Importância', 'feature': 'Métrica'},
+                    color_discrete_sequence=px.colors.sequential.Viridis
+                )
+                fig3.update_layout(yaxis={'categoryorder':'total ascending'})
+                st.plotly_chart(fig3, use_container_width=True)
+                
+                st.info("💡 **Insight**: A diferença de ouro e experiência são os fatores mais decisivos para a vitória.")
+            else:
+                st.warning("Modelo não carregado. A análise de importância das features não está disponível.")
+
+    # Aba 2: Simulador de Vitória (se o modelo estiver carregado)
+    if model:
+        with tab_widgets[1]:
+            st.header("🎯 Simulador de Probabilidade de Vitória")
+        
+            st.markdown("Configure os parâmetros da partida aos 10 minutos para prever a probabilidade de vitória do Time Azul:")
             
-            st.info("💡 **Insight**: A diferença de ouro e experiência são os fatores mais decisivos para a vitória.")
-    
-    # Aba 2: Simulador de Vitória
-    with tab2:
-        st.header("🎯 Simulador de Probabilidade de Vitória")
-        
-        if model is None:
-            st.error("❌ Modelo não carregado. Por favor, certifique-se de que o arquivo 'lol_win_predictor.joblib' está presente.")
-            st.stop()
-        
-        st.markdown("Configure os parâmetros da partida aos 10 minutos para prever a probabilidade de vitória do Time Azul:")
-        
-        # Layout de duas colunas para os inputs
-        col1, col2 = st.columns(2)
+            # Layout de duas colunas para os inputs
+            col1, col2 = st.columns(2)
         
         with col1:
             # Slider para diferença de ouro
